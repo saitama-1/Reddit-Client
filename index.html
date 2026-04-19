@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Reddit Lane Client · Multi‑Subreddit Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, 'Segoe UI', 'Inter', 'Helvetica Neue', sans-serif;
+        }
+
+        body {
+            background: #f4f6fa;
+            padding: 2rem 1.5rem;
+            color: #1a1e2b;
+        }
+
+        /* header & controls */
+        .app-header {
+            max-width: 1400px;
+            margin: 0 auto 2rem auto;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 1rem;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 1.2rem;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #ff4500, #ff6a35);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            letter-spacing: -0.3px;
+        }
+
+        .subtitle {
+            font-size: 0.85rem;
+            color: #4a5568;
+            margin-top: 4px;
+        }
+
+        .add-panel {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            background: white;
+            padding: 0.75rem 1rem;
+            border-radius: 48px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            align-items: center;
+        }
+
+        .add-panel input {
+            padding: 0.6rem 1rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 40px;
+            font-size: 0.9rem;
+            width: 200px;
+            transition: all 0.2s;
+            background: #fff;
+        }
+
+        .add-panel input:focus {
+            outline: none;
+            border-color: #ff4500;
+            box-shadow: 0 0 0 3px rgba(255,69,0,0.2);
+        }
+
+        .add-panel button {
+            background: #ff4500;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 40px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: white;
+            cursor: pointer;
+            transition: 0.15s;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .add-panel button:hover {
+            background: #e03e00;
+            transform: scale(0.97);
+        }
+
+        .add-panel button:disabled {
+            background: #cbd5e1;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status-msg {
+            font-size: 0.8rem;
+            color: #e53e3e;
+            background: #fff0f0;
+            padding: 0.3rem 0.8rem;
+            border-radius: 40px;
+        }
+
+        /* lanes grid (responsive) */
+        .lanes-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+            gap: 1.8rem;
+            align-items: start;
+        }
+
+        /* lane card */
+        .lane {
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03);
+            overflow: hidden;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            backdrop-filter: blur(0px);
+            border: 1px solid #edf2f7;
+        }
+
+        .lane-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.2rem;
+            background: #fefaf5;
+            border-bottom: 1px solid #f0e7de;
+        }
+
+        .subreddit-title {
+            font-weight: 700;
+            font-size: 1.25rem;
+            letter-spacing: -0.2px;
+        }
+
+        .subreddit-title a {
+            text-decoration: none;
+            color: #1e293b;
+            transition: color 0.1s;
+        }
+
+        .subreddit-title a:hover {
+            color: #ff4500;
+            text-decoration: underline;
+        }
+
+        .lane-actions {
+            display: flex;
+            gap: 0.6rem;
+        }
+
+        .lane-actions button {
+            background: none;
+            border: none;
+            font-size: 1.1rem;
+            cursor: pointer;
+            padding: 6px 8px;
+            border-radius: 40px;
+            transition: 0.1s;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            color: #4b5563;
+        }
+
+        .lane-actions .refresh-btn:hover {
+            background: #eef2ff;
+            color: #2563eb;
+        }
+
+        .lane-actions .delete-btn:hover {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .posts-list {
+            padding: 0.2rem 0;
+            max-height: 520px;
+            overflow-y: auto;
+            background: white;
+        }
+
+        .post-item {
+            padding: 0.9rem 1.2rem;
+            border-bottom: 1px solid #f1f5f9;
+            transition: background 0.1s;
+        }
+
+        .post-item:hover {
+            background: #fafcff;
+        }
+
+        .post-title {
+            font-weight: 600;
+            font-size: 0.95rem;
+            line-height: 1.4;
+            margin-bottom: 8px;
+            color: #0f172a;
+        }
+
+        .post-title a {
+            text-decoration: none;
+            color: #0f172a;
+        }
+
+        .post-title a:hover {
+            color: #ff4500;
+            text-decoration: underline;
+        }
+
+        .post-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            font-size: 0.75rem;
+            color: #5b6e8c;
+            align-items: center;
+        }
+
+        .post-author::before {
+            content: "u/";
+            opacity: 0.7;
+        }
+
+        .post-ups {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-weight: 500;
+        }
+
+        .post-ups::before {
+            content: "⬆️";
+            font-size: 0.7rem;
+            opacity: 0.8;
+        }
+
+        .loading-placeholder, .error-placeholder, .empty-placeholder {
+            padding: 2rem 1.5rem;
+            text-align: center;
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+
+        .error-placeholder {
+            color: #c2410c;
+            background: #fff6f0;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 22px;
+            height: 22px;
+            border: 2px solid #e2e8f0;
+            border-top-color: #ff4500;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .footer-note {
+            margin-top: 3rem;
+            text-align: center;
+            font-size: 0.75rem;
+            color: #7c8ba0;
+            border-top: 1px solid #e2edf2;
+            padding-top: 1.8rem;
+            max-width: 1400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        button {
+            background: none;
+        }
+
+        @media (max-width: 700px) {
+            body {
+                padding: 1rem;
+            }
+            .add-panel {
+                width: 100%;
+                justify-content: center;
+            }
+            .lanes-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-header">
+    <div>
+        <h1>📌 Reddit Lane Client</h1>
+        <div class="subtitle">multi‑subreddit dashboard · live posts · persistent lanes</div>
+    </div>
+    <div class="add-panel">
+        <input type="text" id="subredditInput" placeholder="e.g., reactjs, python, art" autocomplete="off">
+        <button id="addSubredditBtn">➕ Add Subreddit</button>
+        <div id="addFeedback" class="status-msg" style="display: none;"></div>
+    </div>
+</div>
+
+<div id="lanesContainer" class="lanes-container">
+    <!-- lanes injected dynamically -->
+</div>
+<div class="footer-note">
+    ⚡ Each lane shows recent posts · Refresh fetches latest data · Delete removes lane<br>
+    📁 Lanes saved automatically in your browser
+</div>
+
+<script>
+    // ---------- APP STATE ----------
+    let lanes = [];           // each lane: { id, subreddit, posts, loading, error }
+    let nextId = 1;          // simple unique id
+    
+    // DOM elements
+    const lanesContainer = document.getElementById('lanesContainer');
+    const addBtn = document.getElementById('addSubredditBtn');
+    const subInput = document.getElementById('subredditInput');
+    const addFeedback = document.getElementById('addFeedback');
+    
+    // ---------- HELPERS ----------
+    function showFeedback(msg, isError = true) {
+        addFeedback.textContent = msg;
+        addFeedback.style.display = 'block';
+        addFeedback.style.backgroundColor = isError ? '#fff0f0' : '#e6ffed';
+        addFeedback.style.color = isError ? '#c7254e' : '#2c6e2f';
+        setTimeout(() => {
+            addFeedback.style.display = 'none';
+        }, 2800);
+    }
+    
+    // Save subreddit names to localStorage (preserve order)
+    function persistSubreddits() {
+        const subNames = lanes.map(lane => lane.subreddit);
+        localStorage.setItem('reddit_lanes_subreddits', JSON.stringify(subNames));
+    }
+    
+    // Load saved subreddits or default
+    function loadSavedSubreddits() {
+        const stored = localStorage.getItem('reddit_lanes_subreddits');
+        if (stored) {
+            try {
+                const arr = JSON.parse(stored);
+                if (Array.isArray(arr) && arr.length) return arr;
+            } catch(e) { console.warn(e); }
+        }
+        // default lanes inspired by the mock UI
+        return ['learnprogramming', 'javascript'];
+    }
+    
+    // fetch posts from reddit .json (limit = 12)
+    async function fetchRedditPosts(subreddit) {
+        const url = `https://www.reddit.com/r/${encodeURIComponent(subreddit)}.json?limit=12`;
+        const res = await fetch(url);
+        if (!res.ok) {
+            if (res.status === 404) throw new Error(`r/${subreddit} doesn't exist`);
+            if (res.status === 429) throw new Error(`Rate limited — try again later`);
+            throw new Error(`HTTP ${res.status}: unable to fetch`);
+        }
+        const data = await res.json();
+        if (!data || !data.data || !data.data.children) throw new Error('Invalid Reddit response');
+        const posts = data.data.children.map(child => {
+            const post = child.data;
+            return {
+                title: post.title || 'Untitled',
+                author: post.author || '[deleted]',
+                ups: post.ups ?? 0,
+                permalink: post.permalink || `https://reddit.com/r/${subreddit}`
+            };
+        }).filter(p => p.title !== '[removed]'); // filter removed posts
+        if (posts.length === 0) throw new Error('No posts available in this subreddit');
+        return posts;
+    }
+    
+    // Update a specific lane's data (fetch & modify state) then re-render
+    async function refreshLaneData(laneId) {
+        const laneIndex = lanes.findIndex(l => l.id === laneId);
+        if (laneIndex === -1) return;
+        const lane = lanes[laneIndex];
+        // avoid concurrent refresh while loading
+        if (lane.loading) return;
+        
+        // set loading state
+        lanes[laneIndex] = { ...lane, loading: true, error: null };
+        renderLanes();  // immediate UI with loading spinner
+        
+        try {
+            const freshPosts = await fetchRedditPosts(lane.subreddit);
+            // update lane again with fetched data
+            const updatedLane = {
+                ...lanes[laneIndex],
+                posts: freshPosts,
+                loading: false,
+                error: null
+            };
+            lanes[laneIndex] = updatedLane;
+        } catch (err) {
+            console.error(`Error refreshing r/${lane.subreddit}:`, err);
+            lanes[laneIndex] = {
+                ...lanes[laneIndex],
+                loading: false,
+                error: err.message || 'Failed to load posts',
+                posts: []
+            };
+        }
+        renderLanes();   // final update
+    }
+    
+    // Delete lane by id
+    function deleteLaneById(laneId) {
+        lanes = lanes.filter(lane => lane.id !== laneId);
+        persistSubreddits();  // save updated list
+        renderLanes();
+        showFeedback(`Lane removed`, false);
+    }
+    
+    // Add brand new subreddit (with validation + fetch before adding)
+    async function addNewSubreddit(subredditRaw) {
+        let sub = subredditRaw.trim().toLowerCase();
+        if (!sub) {
+            showFeedback('Please enter a subreddit name');
+            return false;
+        }
+        // remove potential /r/ prefix
+        if (sub.startsWith('r/')) sub = sub.slice(2);
+        if (sub.startsWith('/r/')) sub = sub.slice(3);
+        sub = sub.split('/')[0];  // remove any trailing slashes
+        if (sub.length === 0) {
+            showFeedback('Invalid subreddit name');
+            return false;
+        }
+        
+        // duplicate check (case insensitive)
+        const alreadyExists = lanes.some(lane => lane.subreddit.toLowerCase() === sub.toLowerCase());
+        if (alreadyExists) {
+            showFeedback(`❌ r/${sub} already exists in your lanes`);
+            return false;
+        }
+        
+        // disable button during validation
+        addBtn.disabled = true;
+        const originalText = addBtn.textContent;
+        addBtn.textContent = '⏳ Verifying...';
+        
+        try {
+            // first, try fetching to ensure subreddit is valid
+            const testPosts = await fetchRedditPosts(sub);
+            // success -> create new lane with fetched posts (avoid second fetch)
+            const newId = Date.now() + Math.floor(Math.random() * 10000);
+            const newLane = {
+                id: newId,
+                subreddit: sub,
+                posts: testPosts,
+                loading: false,
+                error: null
+            };
+            lanes.push(newLane);
+            persistSubreddits();
+            renderLanes();
+            showFeedback(`✅ r/${sub} added!`, false);
+            subInput.value = '';   // clear input
+            return true;
+        } catch (err) {
+            console.warn(err);
+            let errorMsg = err.message || 'Invalid subreddit or network issue';
+            if (errorMsg.includes("doesn't exist")) errorMsg = `r/${sub} doesn't exist on Reddit`;
+            else if (errorMsg.includes('Rate limited')) errorMsg = `Reddit rate limit — wait a moment`;
+            showFeedback(`❌ ${errorMsg}`);
+            return false;
+        } finally {
+            addBtn.disabled = false;
+            addBtn.textContent = originalText;
+        }
+    }
+    
+    // ---------- RENDER LANES (fully reactive) ----------
+    function renderLanes() {
+        if (!lanesContainer) return;
+        if (lanes.length === 0) {
+            lanesContainer.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding: 3rem; background:white; border-radius:2rem; color:#64748b;">✨ No subreddit lanes yet — use the form above to add your first subreddit ✨</div>`;
+            return;
+        }
+        
+        let lanesHTML = '';
+        for (const lane of lanes) {
+            const { id, subreddit, posts, loading, error } = lane;
+            const displaySub = subreddit;
+            const subredditUrl = `https://www.reddit.com/r/${subreddit}`;
+            
+            // posts or loading/error content
+            let contentHtml = '';
+            if (loading) {
+                contentHtml = `
+                    <div class="loading-placeholder">
+                        <div class="spinner"></div> Fetching latest posts from r/${displaySub}...
+                    </div>
+                `;
+            } else if (error) {
+                contentHtml = `
+                    <div class="error-placeholder">
+                        ⚠️ ${escapeHtml(error)}<br>
+                        <span style="font-size:0.7rem; display:inline-block; margin-top:6px;">Click ⟳ refresh to retry</span>
+                    </div>
+                `;
+            } else if (!posts || posts.length === 0) {
+                contentHtml = `<div class="empty-placeholder">📭 No posts found. Try refresh.</div>`;
+            } else {
+                // render posts list
+                let postsHtml = '';
+                for (let i = 0; i < posts.length; i++) {
+                    const post = posts[i];
+                    const title = post.title || 'Untitled';
+                    const author = post.author || 'unknown';
+                    const ups = post.ups !== undefined ? post.ups : 0;
+                    let permalink = post.permalink || '';
+                    if (permalink && !permalink.startsWith('http')) {
+                        permalink = `https://www.reddit.com${permalink}`;
+                    } else if (!permalink) {
+                        permalink = `https://www.reddit.com/r/${subreddit}`;
+                    }
+                    postsHtml += `
+                        <div class="post-item">
+                            <div class="post-title">
+                                <a href="${escapeHtml(permalink)}" target="_blank" rel="noopener noreferrer">${escapeHtml(title)}</a>
+                            </div>
+                            <div class="post-meta">
+                                <span class="post-author">${escapeHtml(author)}</span>
+                                <span class="post-ups"> ${ups.toLocaleString()}</span>
+                            </div>
+                        </div>
+                    `;
+                }
+                contentHtml = `<div class="posts-list">${postsHtml}</div>`;
+            }
+            
+            lanesHTML += `
+                <div class="lane" data-lane-id="${id}">
+                    <div class="lane-header">
+                        <div class="subreddit-title">
+                            <a href="${escapeHtml(subredditUrl)}" target="_blank" rel="noopener noreferrer">r/${escapeHtml(displaySub)}</a>
+                        </div>
+                        <div class="lane-actions">
+                            <button class="refresh-btn" data-action="refresh" data-id="${id}" title="Refresh posts">⟳ Refresh</button>
+                            <button class="delete-btn" data-action="delete" data-id="${id}" title="Delete lane">🗑️ Delete</button>
+                        </div>
+                    </div>
+                    ${contentHtml}
+                </div>
+            `;
+        }
+        
+        lanesContainer.innerHTML = lanesHTML;
+        
+        // attach event listeners via delegation (safe after re-render)
+        lanesContainer.querySelectorAll('.refresh-btn').forEach(btn => {
+            btn.removeEventListener('click', refreshHandler);
+            btn.addEventListener('click', refreshHandler);
+        });
+        lanesContainer.querySelectorAll('.delete-btn').forEach(btn => {
+            btn.removeEventListener('click', deleteHandler);
+            btn.addEventListener('click', deleteHandler);
+        });
+    }
+    
+    // Helper event handlers for dynamic buttons
+    function refreshHandler(e) {
+        e.stopPropagation();
+        const btn = e.currentTarget;
+        const laneId = parseInt(btn.getAttribute('data-id'), 10);
+        if (laneId) refreshLaneData(laneId);
+    }
+    
+    function deleteHandler(e) {
+        e.stopPropagation();
+        const btn = e.currentTarget;
+        const laneId = parseInt(btn.getAttribute('data-id'), 10);
+        if (laneId) deleteLaneById(laneId);
+    }
+    
+    // basic escaping to avoid XSS
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+            return c;
+        });
+    }
+    
+    // ---------- INITIALIZE APP: load saved lanes & fetch their posts ----------
+    async function initializeLanesFromStorage() {
+        const savedSubs = loadSavedSubreddits();
+        // build lane objects with loading=true, posts empty
+        const newLanes = [];
+        for (const sub of savedSubs) {
+            // avoid duplicate if somehow same sub multiple times in storage (sanitize)
+            if (newLanes.some(l => l.subreddit.toLowerCase() === sub.toLowerCase())) continue;
+            newLanes.push({
+                id: nextId++,
+                subreddit: sub,
+                posts: [],
+                loading: true,
+                error: null
+            });
+        }
+        lanes = newLanes;
+        renderLanes();  // show loading skeletons
+        
+        // fetch data for each lane sequentially or concurrently (concurrent is fine)
+        const fetchPromises = lanes.map(lane => refreshLaneData(lane.id));
+        await Promise.allSettled(fetchPromises);
+        // final render after all done (refreshLaneData already calls render after each update)
+        // but we call once to be safe: after all updates the UI is consistent.
+        // refreshLaneData updates state and re-renders each time. That's fine.
+    }
+    
+    // ---------- EVENT LISTENERS (Add subreddit) ----------
+    addBtn.addEventListener('click', async () => {
+        const rawName = subInput.value;
+        if (!rawName.trim()) {
+            showFeedback('Please enter a subreddit name (e.g., reactjs)');
+            return;
+        }
+        await addNewSubreddit(rawName);
+    });
+    
+    subInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addBtn.click();
+        }
+    });
+    
+    // optional: reset feedback on input focus
+    subInput.addEventListener('focus', () => {
+        addFeedback.style.display = 'none';
+    });
+    
+    // start the app
+    (async () => {
+        await initializeLanesFromStorage();
+        // additional: if no lanes after init (maybe storage empty but default is set),
+        // but default ensures at least two lanes.
+        if (lanes.length === 0) {
+            // edge case: no storage and default array empty? Provide fallback
+            lanes = [
+                { id: nextId++, subreddit: 'learnprogramming', posts: [], loading: true, error: null },
+                { id: nextId++, subreddit: 'javascript', posts: [], loading: true, error: null }
+            ];
+            renderLanes();
+            for (const lane of lanes) await refreshLaneData(lane.id);
+            persistSubreddits();
+        }
+    })();
+</script>
+</body>
+</html>
